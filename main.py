@@ -170,7 +170,10 @@ def client_sign(bduss, tbs, fid, kw):
     data = copy.copy(SIGN_DATA)
     data.update({BDUSS: bduss, FID: fid, KW: kw, TBS: tbs, TIMESTAMP: str(int(time.time()))})
     data = encodeData(data)
-    res = s.post(url=SIGN_URL, data=data, timeout=5).json()
+    try:
+        res = s.post(url=SIGN_URL, data=data, timeout=5).json()
+    except Exception as e:
+        logger.error("签到失败" + e)
     return res
 
 def send_email(sign_list):
