@@ -180,7 +180,7 @@ def client_sign(bduss, tbs, fid, kw):
         logger.error("签到失败" + e)
     return res
 
-def send_email(sign_list):
+def send_email(signed_list,unsigned_list):
     if ('HOST' not in ENV or 'FROM' not in ENV or 'TO' not in ENV or 'AUTH' not in ENV):
         logger.error("未配置邮箱")
         return
@@ -189,15 +189,10 @@ def send_email(sign_list):
     FROM = ENV['FROM']
     TO = ENV['TO'].split('#')
     AUTH = ENV['AUTH']
-
-    logger.info('HOST:'+HOST)
-    logger.info('FROM:'+FROM)
-    # logger.info('TO:'+TO)
-    print(TO)
-    logger.info('AUTH:'+AUTH)
     
-    length = len(sign_list)
-    subject = f"{time.strftime('%Y-%m-%d', time.localtime())} 签到{length}个贴吧"
+    signed_length = len(signed_list)
+    unsigned_length = len(unsigned_list)
+    subject = f"{time.strftime('%Y-%m-%d', time.localtime())} {signed_length+unsigned_length}个贴吧，成功签到{signed_length}个"
     body = """
     <style>
     .child {
@@ -210,11 +205,25 @@ def send_email(sign_list):
     }
     </style>
     """
-    for i in sign_list:
-        body += f"""
+    body += f"""
         <div class="child">
-            <div class="name"> 贴吧名称: { i['name'] }</div>
-            <div class="slogan"> 贴吧简介: { i['slogan'] }</div>
+            <div class="name"> 签到成功:</div>
+        """
+    for i in signed_list:
+        body += f"""
+            <div class="name">  { i['name'] }</div>
+        """
+    body += f"""
+        </div>
+        <hr>
+        <div class="child">
+            <div class="name"> 签到失败:</div>
+        """
+    for i in unsigned_list:
+        body += f"""
+            <div class="name">  { i['name'] }</div>
+        """
+    body += f"""
         </div>
         <hr>
         """
@@ -246,7 +255,7 @@ def main():
         logger.info("开始签到第" + str(n) + "个用户")
         tbs = get_tbs(i)
         favorites = get_favorite(i)
-        send_email(favorites)
+        send_email(favorites,favorites)
         return
         follow = copy.copy(favorites)
         success=[]
@@ -270,7 +279,7 @@ def main():
             time.sleep(random.randint(300,600))
             tbs = get_tbs(i)
         logger.info("完成第" + str(n) + "个用户签到")
-    send_email(favorites)
+        send_email(success,failed)
     logger.info("所有用户签到结束")
 
 
