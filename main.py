@@ -185,7 +185,7 @@ def send_email(sign_list):
         logger.error("未配置邮箱")
         return
     HOST = ENV['HOST']
-    FROM = ENV['FROM']
+    FROM = 'tieba_sign <{}>'.format(ENV['FROM'])
     TO = ENV['TO'].split('#')
     AUTH = ENV['AUTH']
 
