@@ -191,7 +191,8 @@ def send_email(sign_list):
 
     logger.info('HOST:'+HOST)
     logger.info('FROM:'+FROM)
-    logger.info('TO:'+TO)
+    # logger.info('TO:'+TO)
+    print(TO)
     logger.info('AUTH:'+AUTH)
     
     length = len(sign_list)
