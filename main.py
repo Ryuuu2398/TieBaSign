@@ -214,8 +214,10 @@ def send_email(sign_list):
     msg['subject'] = subject
     
     try:
+        smtp = smtplib.SMTP()
+        
         # 建立 SMTP 、SSL 的连接，连接发送方的邮箱服务器
-        smtp = smtplib.SMTP(HOST)
+        smtp.connect(HOST)
 
         # 登录发送方的邮箱账号
         smtp.login(FROM, AUTH)
@@ -239,6 +241,7 @@ def main():
         tbs = get_tbs(i)
         favorites = get_favorite(i)
         send_email(favorites)
+        return
         follow = copy.copy(favorites)
         success=[]
         for t in range(5):
