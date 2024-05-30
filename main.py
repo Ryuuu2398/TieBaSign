@@ -215,7 +215,7 @@ def send_email(sign_list):
     
     try:
         # 建立 SMTP 、SSL 的连接，连接发送方的邮箱服务器
-        smtp = smtplib.SMTP_SSL(HOST)
+        smtp = smtplib.SMTP(HOST)
 
         # 登录发送方的邮箱账号
         smtp.login(FROM, AUTH)
