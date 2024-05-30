@@ -48,6 +48,7 @@ SIGN_KEY = 'tiebaclient!!!'
 UTF8 = "utf-8"
 SIGN = "sign"
 KW = "kw"
+SIGNED = '160002'
 
 s = requests.Session()
 
@@ -91,10 +92,12 @@ def get_favorite(bduss):
     except Exception as e:
         logger.error("获取关注的贴吧出错" + e)
         return []
+    logger.info("成功获取关注的贴吧第1页")
     returnData = res
     if 'forum_list' not in returnData:
         returnData['forum_list'] = []
     if res['forum_list'] == []:
+        logger.error("获取关注的贴吧失败，未发现任何贴吧")
         return {'gconforum': [], 'non-gconforum': []}
     if 'non-gconforum' not in returnData['forum_list']:
         returnData['forum_list']['non-gconforum'] = []
@@ -122,6 +125,7 @@ def get_favorite(bduss):
         except Exception as e:
             logger.error("获取关注的贴吧出错" + e)
             continue
+        logger.info("成功获取关注的贴吧第{}页".format(i))
         if 'forum_list' not in res:
             continue
         if 'non-gconforum' in res['forum_list']:
@@ -184,7 +188,6 @@ def send_email(sign_list):
     FROM = ENV['FROM']
     TO = ENV['TO'].split('#')
     AUTH = ENV['AUTH']
-    log.info('HOST:'+HOST+' FROM:'+FROM+' TO:'+TO+' AUTH:'+AUTH)
     length = len(sign_list)
     subject = f"{time.strftime('%Y-%m-%d', time.localtime())} 签到{length}个贴吧"
     body = """
@@ -209,27 +212,58 @@ def send_email(sign_list):
         """
     msg = MIMEText(body, 'html', 'utf-8')
     msg['subject'] = subject
-    smtp = smtplib.SMTP()
-    smtp.connect(HOST)
-    smtp.login(FROM, AUTH)
-    smtp.sendmail(FROM, TO, msg.as_string())
-    smtp.quit()
+    
+    try:
+        # 建立 SMTP 、SSL 的连接，连接发送方的邮箱服务器
+        smtp = smtplib.SMTP_SSL(HOST)
+
+        # 登录发送方的邮箱账号
+        smtp.login(FROM, AUTH)
+
+         # 发送邮件 发送方，接收方，发送的内容
+        smtp.sendmail(FROM, TO, msg.as_string())
+
+        logger.info('邮件发送成功')
+ 
+        smtp.quit()
+    except Exception as e:
+        logger.error('发送邮件失败' + str(e))
 
 def main():
-    if ('BDUSS' not in ENV):
+   if ('BDUSS' not in ENV):
         logger.error("未配置BDUSS")
         return
     b = ENV['BDUSS'].split('#')
     for n, i in enumerate(b):
-        logger.info("开始签到第" + str(n) + "个用户" + i)
+        logger.info("开始签到第" + str(n) + "个用户")
         tbs = get_tbs(i)
         favorites = get_favorite(i)
-        for j in favorites:
-            time.sleep(random.randint(1,5))
-            client_sign(i, tbs, j["id"], j["name"])
+        send_email(favorites)
+        follow = copy.copy(favorites)
+        success=[]
+        for t in range(5):
+            failed=[]
+            for j in follow:
+                time.sleep(random.randint(1,5))
+                res = client_sign(i, tbs, j["id"], j["name"])
+                if(res['error_code'] == '0'):
+                    success.append(j)
+                    logger.info('签到成功')
+                elif(res['error_code'] == SIGNED):
+                    success.append(j)
+                    logger.info(res['error_code']+':'+res['error_msg'])
+                else:
+                    failed.append(j)
+                    logger.info(res['error_code']+':'+res['error_msg'])
+            if(failed == []):
+                break
+            follow = copy.copy(failed)
+            time.sleep(random.randint(300,600))
+            tbs = get_tbs(i)
         logger.info("完成第" + str(n) + "个用户签到")
     send_email(favorites)
     logger.info("所有用户签到结束")
+
 
 
 if __name__ == '__main__':
