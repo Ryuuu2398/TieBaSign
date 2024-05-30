@@ -185,7 +185,8 @@ def send_email(sign_list):
         logger.error("未配置邮箱")
         return
     HOST = ENV['HOST']
-    FROM = 'tieba_sign <{}>'.format(ENV['FROM'])
+    # FROM = 'tieba_sign <{}>'.format(ENV['FROM'])
+    FROM = ENV['FROM']
     TO = ENV['TO'].split('#')
     AUTH = ENV['AUTH']
 
@@ -221,10 +222,8 @@ def send_email(sign_list):
     msg['subject'] = subject
     
     try:
-        smtp = smtplib.SMTP()
-        
         # 建立 SMTP 、SSL 的连接，连接发送方的邮箱服务器
-        smtp.connect(HOST)
+        smtp.SMTP_SSL(HOST,465)
 
         # 登录发送方的邮箱账号
         smtp.login(FROM, AUTH)
