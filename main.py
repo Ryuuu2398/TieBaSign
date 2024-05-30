@@ -255,8 +255,8 @@ def main():
         logger.info("开始签到第" + str(n) + "个用户")
         tbs = get_tbs(i)
         favorites = get_favorite(i)
-        send_email(favorites,favorites)
-        return
+        # send_email(favorites,favorites)
+        # return
         follow = copy.copy(favorites)
         success=[]
         for t in range(5):
