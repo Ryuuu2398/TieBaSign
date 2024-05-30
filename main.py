@@ -230,7 +230,7 @@ def send_email(sign_list):
         logger.error('发送邮件失败' + str(e))
 
 def main():
-   if ('BDUSS' not in ENV):
+    if ('BDUSS' not in ENV):
         logger.error("未配置BDUSS")
         return
     b = ENV['BDUSS'].split('#')
