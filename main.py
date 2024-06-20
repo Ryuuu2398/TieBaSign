@@ -177,7 +177,7 @@ def client_sign(bduss, tbs, fid, kw):
     try:
         res = s.post(url=SIGN_URL, data=data, timeout=5).json()
     except Exception as e:
-        logger.error("签到失败" + e)
+        logger.error("签到失败" + str(e))
     return res
 
 def send_email(signed_list,unsigned_list):
