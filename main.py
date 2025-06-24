@@ -48,7 +48,6 @@ SIGN_KEY = 'tiebaclient!!!'
 UTF8 = "utf-8"
 SIGN = "sign"
 KW = "kw"
-SIGNED = '160002'
 
 s = requests.Session()
 
@@ -460,20 +459,20 @@ def main():
             
             for t in range(2):  # 最多重试2次
                 current_failed = []
-                for j in follow:
-                    time.sleep(random.randint(1, 5))
-                    res = client_sign(i, tbs, j["id"], j["name"])
+                for bar in follow:
+                    time.sleep(random.randint(1, 3))  # 减少等待时间
+                    res = client_sign(bduss, tbs, bar["id"], bar["name"])
                     
                     if res.get('error_code') == '0':
-                        success.append(j)
-                        logger.info(f"{j['name']}: 签到成功")
-                    elif res.get('error_code') == SIGNED:
-                        success.append(j)
-                        logger.info(f"{j['name']}: 已经签到过")
+                        success.append(bar["name"])
+                        logger.info(f"{bar['name']}: 签到成功")
+                    elif res.get('error_code') == '160002':
+                        success.append(bar["name"])
+                        logger.info(f"{bar['name']}: 已经签到过")
                     else:
-                        current_failed.append(j)
+                        current_failed.append(bar)
                         error_msg = res.get('error_msg', '未知错误')
-                        logger.error(f"{j['name']}: 签到失败 - {error_msg}")
+                        logger.error(f"{bar['name']}: 签到失败({res.get('error_code')}) - {error_msg}")
                 
                 # 更新用户报告
                 user_report.success_list = success
