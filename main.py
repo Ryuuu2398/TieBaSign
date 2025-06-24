@@ -458,7 +458,7 @@ def main():
             success = []
             failed = []
             
-            for t in range(3):  # 最多重试3次
+            for t in range(1):  # 最多重试1次
                 current_failed = []
                 for j in follow:
                     time.sleep(random.randint(1, 5))
