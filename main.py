@@ -52,6 +52,48 @@ SIGNED = '160002'
 
 s = requests.Session()
 
+class UserReport:
+    """用户签到报告类"""
+    def __init__(self, user_index):
+        self.user_index = user_index  # 用户序号
+        self.success_list = []       # 成功列表
+        self.failed_list = []        # 失败列表
+        self.total_bars = 0          # 总贴吧数量
+        self.start_time = time.time() # 开始时间
+        self.end_time = 0             # 结束时间
+        
+    def add_success(self, bar):
+        """添加成功签到"""
+        self.success_list.append(bar)
+        
+    def add_failed(self, bar):
+        """添加失败签到"""
+        self.failed_list.append(bar)
+        
+    def set_total(self, total):
+        """设置总贴吧数量"""
+        self.total_bars = total
+        
+    def complete(self):
+        """标记完成"""
+        self.end_time = time.time()
+        
+    def get_duration(self):
+        """获取签到耗时"""
+        return round(self.end_time - self.start_time, 2)
+        
+    def get_report(self):
+        """获取报告字典"""
+        return {
+            "user_index": self.user_index,
+            "success": self.success_list,
+            "failed": self.failed_list,
+            "total": self.total_bars,
+            "success_count": len(self.success_list),
+            "failed_count": len(self.failed_list),
+            "duration": self.get_duration()
+        }
+
 
 def get_tbs(bduss):
     logger.info("获取tbs开始")
@@ -60,7 +102,7 @@ def get_tbs(bduss):
     try:
         tbs = s.get(url=TBS_URL, headers=headers, timeout=5).json()[TBS]
     except Exception as e:
-        logger.error("获取tbs出错" + e)
+        logger.error("获取tbs出错" + str(e))
         logger.info("重新获取tbs开始")
         tbs = s.get(url=TBS_URL, headers=headers, timeout=5).json()[TBS]
     logger.info("获取tbs结束")
@@ -90,7 +132,7 @@ def get_favorite(bduss):
     try:
         res = s.post(url=LIKIE_URL, data=data, timeout=5).json()
     except Exception as e:
-        logger.error("获取关注的贴吧出错" + e)
+        logger.error("获取关注的贴吧出错" + str(e))
         return []
     logger.info("成功获取关注的贴吧第1页")
     returnData = res
@@ -123,7 +165,7 @@ def get_favorite(bduss):
         try:
             res = s.post(url=LIKIE_URL, data=data, timeout=5).json()
         except Exception as e:
-            logger.error("获取关注的贴吧出错" + e)
+            logger.error("获取关注的贴吧出错" + str(e))
             continue
         logger.info("成功获取关注的贴吧第{}页".format(i))
         if 'forum_list' not in res:
@@ -154,7 +196,7 @@ def get_favorite(bduss):
                     t.append(j)
         else:
             t.append(i)
-    logger.info("获取关注的贴吧结束")
+    logger.info("获取关注的贴吧结束，共{}个贴吧".format(len(t)))
     return t
 
 
@@ -178,111 +220,292 @@ def client_sign(bduss, tbs, fid, kw):
         res = s.post(url=SIGN_URL, data=data, timeout=5).json()
     except Exception as e:
         logger.error("签到失败" + str(e))
+        return {'error_code': 'network_error', 'error_msg': str(e)}
     return res
 
-def send_email(signed_list,unsigned_list):
+def send_summary_email(user_reports):
+    """发送汇总邮件报告"""
     if ('HOST' not in ENV or 'FROM' not in ENV or 'TO' not in ENV or 'AUTH' not in ENV):
         logger.error("未配置邮箱")
         return
+        
     HOST = ENV['HOST']
-    # FROM = 'tieba_sign <{}>'.format(ENV['FROM'])
     FROM = ENV['FROM']
     TO = ENV['TO'].split('#')
     AUTH = ENV['AUTH']
     
-    signed_length = len(signed_list)
-    unsigned_length = len(unsigned_list)
-    subject = f"{time.strftime('%Y-%m-%d', time.localtime())} {signed_length+unsigned_length}个贴吧，成功签到{signed_length}个"
+    # 计算总体统计
+    total_users = len(user_reports)
+    total_bars = sum(report.total_bars for report in user_reports)
+    total_success = sum(len(report.success_list) for report in user_reports)
+    total_failed = sum(len(report.failed_list) for report in user_reports)
+    success_rate = round(total_success / total_bars * 100, 2) if total_bars > 0 else 0
+    
+    # 邮件主题
+    date_str = time.strftime('%Y-%m-%d', time.localtime())
+    subject = f"百度贴吧自动签到汇总报告 ({date_str}) - {total_users}用户 {total_bars}贴吧 成功率:{success_rate}%"
+    
+    # 构建HTML邮件内容
     body = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8">
     <style>
-    .child {
-      background-color: rgba(173, 216, 230, 0.19);
-      padding: 10px;
-    }
-
-    .child * {
-      margin: 5px;
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #4a86e8;
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .summary {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .user-report {
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #ffffff;
+        }
+        .user-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #1a73e8;
+        }
+        .section {
+            margin-bottom: 15px;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #5f6368;
+        }
+        .success-bar, .failed-bar {
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .success-bar {
+            background-color: #e6f4ea;
+            border: 1px solid #34a853;
+            color: #34a853;
+        }
+        .failed-bar {
+            background-color: #fce8e6;
+            border: 1px solid #ea4335;
+            color: #ea4335;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .stat-item {
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        .success-stat {
+            background-color: #e6f4ea;
+            color: #34a853;
+        }
+        .failed-stat {
+            background-color: #fce8e6;
+            color: #ea4335;
+        }
+        .time-stat {
+            background-color: #e8f0fe;
+            color: #1a73e8;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #e0e0e0;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #70757a;
+            font-size: 12px;
+        }
     </style>
+    </head>
+    <body>
     """
+    
+    # 添加标题和总体摘要
     body += f"""
-        <div class="child">
-            <div class="name"> 签到成功:</div>
-        """
-    for i in signed_list:
-        body += f"""
-            <div class="name">  { i['name'] }</div>
-        """
-    body += f"""
+    <div class="header">
+        <h2>百度贴吧自动签到汇总报告</h2>
+        <div>日期: {date_str}</div>
+    </div>
+    
+    <div class="summary">
+        <div class="section">
+            <div class="section-title">总体统计</div>
+            <div>用户数量: {total_users}</div>
+            <div>贴吧总数: {total_bars}</div>
+            <div>签到成功: <span style="color:#34a853">{total_success}</span></div>
+            <div>签到失败: <span style="color:#ea4335">{total_failed}</span></div>
+            <div>成功率: <span style="color:#1a73e8">{success_rate}%</span></div>
         </div>
-        <hr>
-        <div class="child">
-            <div class="name"> 签到失败:</div>
-        """
-    for i in unsigned_list:
+    </div>
+    """
+    
+    # 添加每个用户的报告
+    for report in user_reports:
+        user_data = report.get_report()
         body += f"""
-            <div class="name">  { i['name'] }</div>
+        <div class="user-report">
+            <div class="user-header">用户 #{user_data['user_index']+1} 签到报告</div>
+            
+            <div class="stats">
+                <div class="stat-item success-stat">成功: {user_data['success_count']}</div>
+                <div class="stat-item failed-stat">失败: {user_data['failed_count']}</div>
+                <div class="stat-item time-stat">耗时: {user_data['duration']}秒</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">签到成功的贴吧 ({user_data['success_count']})</div>
+                <div>
         """
-    body += f"""
+        
+        # 添加成功的贴吧
+        for bar in user_data['success']:
+            body += f"<span class='success-bar'>{bar['name']}</span>"
+        
+        body += """
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">签到失败的贴吧 ({user_data['failed_count']})</div>
+                <div>
+        """
+        
+        # 添加失败的贴吧
+        for bar in user_data['failed']:
+            body += f"<span class='failed-bar'>{bar['name']}</span>"
+        
+        body += """
+                </div>
+            </div>
         </div>
-        <hr>
         """
+    
+    # 添加页脚
+    body += f"""
+    <hr>
+    <div class="footer">
+        百度贴吧自动签到服务 | 生成时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}
+    </div>
+    </body>
+    </html>
+    """
+    
+    # 创建邮件
     msg = MIMEText(body, 'html', 'utf-8')
-    msg['subject'] = subject
+    msg['Subject'] = subject
+    msg['From'] = FROM
+    msg['To'] = ", ".join(TO)
     
     try:
-        # 建立 SMTP 、SSL 的连接，连接发送方的邮箱服务器
-        smtp = smtplib.SMTP_SSL(HOST,465)
-
-        # 登录发送方的邮箱账号
+        # 建立 SMTP、SSL 连接
+        smtp = smtplib.SMTP_SSL(HOST, 465)
+        # 登录邮箱账号
         smtp.login(FROM, AUTH)
-
-         # 发送邮件 发送方，接收方，发送的内容
+        # 发送邮件
         smtp.sendmail(FROM, TO, msg.as_string())
-
-        logger.info('邮件发送成功')
- 
+        logger.info('汇总邮件发送成功')
         smtp.quit()
     except Exception as e:
-        logger.error('发送邮件失败' + str(e))
+        logger.error('发送汇总邮件失败: ' + str(e))
 
 def main():
     if ('BDUSS' not in ENV):
         logger.error("未配置BDUSS")
         return
+    
     b = ENV['BDUSS'].split('#')
+    all_user_reports = []  # 存储所有用户的报告
+    
     for n, i in enumerate(b):
-        logger.info("开始签到第" + str(n) + "个用户")
-        tbs = get_tbs(i)
-        favorites = get_favorite(i)
-        # send_email(favorites,favorites)
-        # return
-        follow = copy.copy(favorites)
-        success=[]
-        for t in range(5):
-            failed=[]
-            for j in follow:
-                time.sleep(random.randint(1,5))
-                res = client_sign(i, tbs, j["id"], j["name"])
-                if(res['error_code'] == '0'):
-                    success.append(j)
-                    logger.info('签到成功')
-                elif(res['error_code'] == SIGNED):
-                    success.append(j)
-                    logger.info(res['error_code']+':'+res['error_msg'])
-                else:
-                    failed.append(j)
-                    logger.info(res['error_code']+':'+res['error_msg'])
-            if(failed == []):
-                break
-            follow = copy.copy(failed)
-            time.sleep(random.randint(300,600))
+        logger.info(f"开始签到第{n+1}个用户 (共{len(b)}个用户)")
+        user_report = UserReport(n)  # 创建用户报告
+        
+        try:
             tbs = get_tbs(i)
-        logger.info("完成第" + str(n) + "个用户签到")
-        send_email(success,failed)
-    logger.info("所有用户签到结束")
-
-
+            favorites = get_favorite(i)
+            user_report.set_total(len(favorites))
+            
+            follow = copy.copy(favorites)
+            success = []
+            failed = []
+            
+            for t in range(5):  # 最多重试5次
+                current_failed = []
+                for j in follow:
+                    time.sleep(random.randint(1, 5))
+                    res = client_sign(i, tbs, j["id"], j["name"])
+                    
+                    if res.get('error_code') == '0':
+                        success.append(j)
+                        logger.info(f"{j['name']}: 签到成功")
+                    elif res.get('error_code') == SIGNED:
+                        success.append(j)
+                        logger.info(f"{j['name']}: 已经签到过")
+                    else:
+                        current_failed.append(j)
+                        error_msg = res.get('error_msg', '未知错误')
+                        logger.error(f"{j['name']}: 签到失败 - {error_msg}")
+                
+                # 更新用户报告
+                user_report.success_list = success
+                user_report.failed_list = current_failed
+                
+                if not current_failed:
+                    logger.info(f"第{n+1}个用户所有贴吧签到完成")
+                    break
+                
+                logger.warning(f"第{n+1}个用户有{len(current_failed)}个贴吧签到失败，准备重试 (第{t+1}次重试)")
+                follow = copy.copy(current_failed)
+                time.sleep(random.randint(300, 600))
+                tbs = get_tbs(i)  # 重新获取tbs
+            
+            # 如果还有失败的，添加到报告
+            user_report.failed_list = follow
+            user_report.complete()
+            
+            # 记录用户报告
+            all_user_reports.append(user_report)
+            logger.info(f"完成第{n+1}个用户签到: 成功{len(success)}个, 失败{len(follow)}个, 耗时{user_report.get_duration()}秒")
+        
+        except Exception as e:
+            logger.error(f"处理第{n+1}个用户时发生错误: {str(e)}")
+            # 即使出错也添加到报告
+            user_report.complete()
+            all_user_reports.append(user_report)
+    
+    # 所有用户签到完成后发送汇总报告
+    logger.info(f"所有用户签到完成，共{len(all_user_reports)}个用户")
+    send_summary_email(all_user_reports)
+    logger.info("程序执行完毕")
 
 if __name__ == '__main__':
     main()
