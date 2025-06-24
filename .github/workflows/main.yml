@@ -1,11 +1,9 @@
 name: 'Baidu Tieba Auto Sign'
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
   schedule:
-    - cron: '5 16,22 * * *'
+    - cron: '30 22 * * *'  # 北京时间 6:30 (UTC+8)
 
 jobs:
   tieba_sign:
