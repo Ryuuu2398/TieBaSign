@@ -487,7 +487,7 @@ def main():
                     if error_code == '0':  # 签到成功
                         user_report.add_success(bar)
                         logger.info(f"{bar['name']}: 签到成功({error_code}) - {error_msg}")
-                    elif error_code == '160002':  # 已经签过
+                    elif error_code == '160002':  #  已经签过
                         user_report.add_success(bar)
                         logger.info(f"{bar['name']}: 签到成功({error_code}) - {error_msg}")
                     elif error_code == '340006':  #  贴吧目录出问题
@@ -496,7 +496,10 @@ def main():
                     elif error_code == '300004':  #  加载数据失败
                         user_report.add_failed(bar, error_code, error_msg)
                         logger.info(f"{bar['name']}: 签到失败({error_code}) - {error_msg}")
-                    else:
+                    elif error_code == '340008':  #  黑名单
+                        user_report.add_failed(bar, error_code, error_msg)
+                        logger.info(f"{bar['name']}: 签到失败({error_code}) - {error_msg}")
+                    else:  #  未知错误
                         current_failed.append(user_report.sign_info(bar, error_code, error_msg))
                         logger.error(f"{bar['name']}: 签到失败({error_code}) - {error_msg}")
                 
