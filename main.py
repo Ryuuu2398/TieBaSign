@@ -484,13 +484,16 @@ def main():
                     error_code = res.get('error_code')
                     error_msg = res.get('error_msg')
                     
-                    if error_code == '0':
+                    if error_code == '0':  # 签到成功
                         user_report.add_success(bar)
                         logger.info(f"{bar['name']}: 签到成功({error_code}) - {error_msg}")
                     elif error_code == '160002':  # 已经签过
                         user_report.add_success(bar)
                         logger.info(f"{bar['name']}: 签到成功({error_code}) - {error_msg}")
-                    elif error_code == '340006':  # 贴吧被封禁
+                    elif error_code == '340006':  #  贴吧目录出问题
+                        user_report.add_failed(bar, error_code, error_msg)
+                        logger.info(f"{bar['name']}: 签到失败({error_code}) - {error_msg}")
+                    elif error_code == '300004':  #  加载数据失败
                         user_report.add_failed(bar, error_code, error_msg)
                         logger.info(f"{bar['name']}: 签到失败({error_code}) - {error_msg}")
                     else:
