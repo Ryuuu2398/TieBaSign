@@ -513,6 +513,9 @@ def main():
                     elif error_code == '340008':  #  黑名单
                         user_report.add_failed(bar, error_code, error_msg)
                         logger.info(f"{bar['name']}: 签到失败({error_code}) - {error_msg}")
+                    elif error_code == '3250004':  #  账号被封禁
+                        user_report.add_failed(bar, error_code, error_msg)
+                        logger.info(f"{bar['name']}: 签到失败({error_code}) - {error_msg}")
                     else:  #  未知错误
                         user_report.add_current_failed(bar, error_code, error_msg)
                         logger.error(f"{bar['name']}: 签到失败({error_code}) - {error_msg}")
