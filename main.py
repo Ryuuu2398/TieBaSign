@@ -63,7 +63,7 @@ class UserReport:
         self.start_time = time.time() # 开始时间
         self.end_time = 0             # 结束时间
 
-    def sign_info(bar, error_code, error_msg):
+    def sign_info(self, bar, error_code, error_msg):
         return {
             'bar': bar,
             'error_code': error_code,
