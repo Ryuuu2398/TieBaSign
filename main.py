@@ -57,25 +57,38 @@ class UserReport:
     def __init__(self, user_index):
         self.user_index = user_index  # 用户序号
         self.success_list = []       # 成功列表
-        self.failed_list = []        # 失败列表（现在存储字典）
+        self.failed_list = []        # 失败列表
+        self.current_failed_list = [] # 重试列表
         self.total_bars = 0          # 总贴吧数量
         self.start_time = time.time() # 开始时间
         self.end_time = 0             # 结束时间
 
     def sign_info(bar, error_code, error_msg):
-        return{
+        return {
             'bar': bar,
             'error_code': error_code,
             'error_msg': error_msg
         }
         
-    def add_success(self, bar):
+    def add_success(self, bar, error_code, error_msg):
         """添加成功签到"""
-        self.success_list.append(bar)
+        self.success_list.append(self.sign_info(bar, error_code, error_msg))
         
     def add_failed(self, bar, error_code, error_msg):
         """添加失败签到并记录错误信息"""
         self.failed_list.append(self.sign_info(bar, error_code, error_msg))
+
+    def add_current_failed(self, bar, error_code, error_msg):
+        """添加当前失败签到并记录错误信息"""
+        self.current_failed_list.append(self.sign_info(bar, error_code, error_msg))
+
+    def get_current_failed(self):
+        """获取当前失败签到信息"""
+        return self.current_failed_list
+    
+    def clear_current_failed(self):
+        """清空当前失败签到信息"""
+        self.current_failed_list = []
         
     def set_total(self, total):
         """设置总贴吧数量"""
@@ -83,6 +96,7 @@ class UserReport:
         
     def complete(self):
         """标记完成"""
+        self.failed_list.extend(self.current_failed_list)
         self.end_time = time.time()
         
     def get_duration(self):
@@ -399,8 +413,8 @@ def send_summary_email(user_reports):
         """
         
         # 添加成功的贴吧
-        for bar in user_data['success']:
-            body += f"<span class='success-bar'>{bar['name']}</span>"
+        for item in user_data['success']:
+            body += f"<span class='success-bar'>{item['bar']['name']}</span>"
         
         body += f"""
                 </div>
@@ -477,7 +491,7 @@ def main():
             follow = copy.copy(favorites)
             
             for t in range(2):  # 最多重试几次
-                current_failed = []   # 存储本轮失败的贴吧
+                user_report.clear_current_failed()
                 for bar in follow:
                     time.sleep(random.randint(1, 3))  # 减少等待时间
                     res = client_sign(bduss, tbs, bar["id"], bar["name"])
@@ -485,10 +499,10 @@ def main():
                     error_msg = res.get('error_msg')
                     
                     if error_code == '0':  # 签到成功
-                        user_report.add_success(bar)
+                        user_report.add_success(bar, error_code, error_msg)
                         logger.info(f"{bar['name']}: 签到成功({error_code}) - {error_msg}")
                     elif error_code == '160002':  #  已经签过
-                        user_report.add_success(bar)
+                        user_report.add_success(bar, error_code, error_msg)
                         logger.info(f"{bar['name']}: 签到成功({error_code}) - {error_msg}")
                     elif error_code == '340006':  #  贴吧目录出问题
                         user_report.add_failed(bar, error_code, error_msg)
@@ -500,20 +514,19 @@ def main():
                         user_report.add_failed(bar, error_code, error_msg)
                         logger.info(f"{bar['name']}: 签到失败({error_code}) - {error_msg}")
                     else:  #  未知错误
-                        current_failed.append(user_report.sign_info(bar, error_code, error_msg))
+                        user_report.add_current_failed(bar, error_code, error_msg)
                         logger.error(f"{bar['name']}: 签到失败({error_code}) - {error_msg}")
                 
-                if not current_failed:
+                if not user_report.get_current_failed():
                     logger.info(f"第{user_index+1}个用户所有贴吧签到完成")
                     break
                 
-                logger.warning(f"第{user_index+1}个用户有{len(current_failed)}个贴吧签到失败，准备重试 (第{t+1}次重试)")
-                follow = [item['bar'] for item in current_failed]
+                logger.warning(f"第{user_index+1}个用户有{len(user_report.get_current_failed())}个贴吧签到失败，准备重试 (第{t+1}次重试)")
+                follow = [item['bar'] for item in user_report.get_current_failed()]
                 time.sleep(random.randint(300, 600))
                 tbs = get_tbs(bduss)  # 重新获取tbs
             
-            # 记录重试后仍然失败的贴吧
-            [user_report.add_failed(item['bar'], item['error_code'], item['error_msg']) for item in current_failed]
+            # 合并重试后仍然失败的贴吧
             user_report.complete()
             
             # 记录用户报告
