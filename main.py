@@ -476,7 +476,7 @@ def main():
             
             follow = copy.copy(favorites)
             
-            for t in range(3):  # 最多重试3次
+            for t in range(2):  # 最多重试几次
                 current_failed = []   # 存储本轮失败的贴吧
                 for bar in follow:
                     time.sleep(random.randint(1, 3))  # 减少等待时间
