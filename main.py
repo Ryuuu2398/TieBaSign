@@ -419,7 +419,7 @@ def send_summary_email(user_reports):
             body += f"""
             <div style="margin-bottom: 5px;">
                 <span class='failed-bar'>{bar_name}</span>
-                <span class="error-details">(错误代码: {error_code}, 原因: {error_msg})</span>
+                <span class="error-details">{error_msg}({error_code})</span>
             </div>
             """
         
