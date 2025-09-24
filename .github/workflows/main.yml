@@ -3,7 +3,7 @@ name: 'Baidu Tieba Auto Sign'
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 17 * * *'  # 北京时间 1:00 (UTC+8)
+    - cron: '0 17,23 * * *'  # 北京时间 1:00 (UTC+8)
 
 jobs:
   tieba_sign:
